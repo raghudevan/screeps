@@ -57,7 +57,7 @@ export class BuilderManager {
       }
 
       // Find construction sites to build
-      const site = CreepUtilities.findConstructionSite(creep.room);
+      const site = CreepUtilities.findConstructionSite(creep.room, creep);
       if (site) {
         const buildResult = CreepUtilities.buildConstructionSite(creep, site);
         if (buildResult === ERR_NOT_IN_RANGE) {

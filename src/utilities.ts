@@ -6,6 +6,7 @@ import {
   STRUCTURE_EXTENSION,
   STRUCTURE_SPAWN,
   STRUCTURE_TOWER,
+  STRUCTURE_ROAD,
   LOOK_CREEPS,
   LOOK_STRUCTURES,
 } from "./constants";
@@ -136,12 +137,63 @@ export class CreepUtilities {
   /**
    * Find a construction site in a room
    */
-  static findConstructionSite(room: any): any {
+  static findConstructionSite(room: any, creep: any): any {
     const constructionSites = room.find(FIND_CONSTRUCTION_SITES);
-    if (constructionSites.length > 0) {
-      return constructionSites[0];
+    if (constructionSites.length === 0) {
+      return null;
     }
-    return null;
+
+    // Sort construction sites by distance from the creep
+    const sortedSites = constructionSites.sort((a: any, b: any) => {
+      const distanceA = creep.pos.getRangeTo(a);
+      const distanceB = creep.pos.getRangeTo(b);
+      return distanceA - distanceB;
+    });
+
+    // Check if there's already at least one built extension
+    const builtExtensions = room
+      .find(FIND_STRUCTURES)
+      .filter(
+        (structure: any) => structure.structureType === STRUCTURE_EXTENSION
+      );
+    const hasBuiltExtension = builtExtensions.length > 0;
+
+    // If we have a built extension, prioritize roads over new extensions
+    if (hasBuiltExtension) {
+      // Priority 1: Road (nearest first)
+      const roadSite = sortedSites.find(
+        (site: any) => site.structureType === STRUCTURE_ROAD
+      );
+      if (roadSite) {
+        return roadSite;
+      }
+      // Priority 2: Extension (nearest first)
+      const extensionSite = sortedSites.find(
+        (site: any) => site.structureType === STRUCTURE_EXTENSION
+      );
+      if (extensionSite) {
+        return extensionSite;
+      }
+    } else {
+      // No built extensions yet, prioritize extensions first
+      // Priority 1: Extension (nearest first)
+      const extensionSite = sortedSites.find(
+        (site: any) => site.structureType === STRUCTURE_EXTENSION
+      );
+      if (extensionSite) {
+        return extensionSite;
+      }
+      // Priority 2: Road (nearest first)
+      const roadSite = sortedSites.find(
+        (site: any) => site.structureType === STRUCTURE_ROAD
+      );
+      if (roadSite) {
+        return roadSite;
+      }
+    }
+
+    // Fallback: nearest site
+    return sortedSites[0];
   }
 
   /**
