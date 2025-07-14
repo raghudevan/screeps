@@ -1,6 +1,8 @@
 import { HarvesterManager } from "./harvesterManager";
 import { UpgraderManager } from "./upgraderManager";
 import { BuilderManager } from "./builderManager";
+import { MaintainerManager } from "./maintainerManager";
+import { AttackerManager } from "./attackerManager";
 
 // Example Creep Management Module
 // This demonstrates how to organize your Screeps code into modules
@@ -31,9 +33,16 @@ export class CreepManager {
       console.log(`Set role for ${creep.name} to harvester`);
     }
 
-    // Initialize state if not set
+    // Initialize state if not set (role-specific defaults)
     if (!creep.memory.state) {
-      creep.memory.state = "harvesting";
+      switch (creep.memory.role) {
+        case "attacker":
+          creep.memory.state = "attacking";
+          break;
+        default:
+          creep.memory.state = "harvesting";
+          break;
+      }
     }
 
     // Run role-specific logic
@@ -46,6 +55,12 @@ export class CreepManager {
         break;
       case "builder":
         BuilderManager.run(creep);
+        break;
+      case "maintainer":
+        MaintainerManager.run(creep);
+        break;
+      case "attacker":
+        AttackerManager.run(creep);
         break;
       default:
         console.log(`Unknown creep role: ${creep.memory.role}`);

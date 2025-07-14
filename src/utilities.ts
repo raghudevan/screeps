@@ -2,6 +2,7 @@ import {
   FIND_SOURCES,
   FIND_STRUCTURES,
   FIND_CONSTRUCTION_SITES,
+  FIND_HOSTILE_CREEPS,
   RESOURCE_ENERGY,
   STRUCTURE_EXTENSION,
   STRUCTURE_SPAWN,
@@ -244,5 +245,177 @@ export class CreepUtilities {
     const buildResult = creep.build(site);
     console.log(`${creep.name} build result: ${buildResult}`);
     return buildResult;
+  }
+
+  /**
+   * Check if any structures need repair (including roads)
+   */
+  static hasStructuresNeedingRepair(room: any): boolean {
+    const structures = room.find(FIND_STRUCTURES);
+    console.log(`Found ${structures.length} structures in room ${room.name}`);
+
+    for (const structure of structures) {
+      // Check if it's a structure we can repair
+      if (structure.my && structure.hits < structure.hitsMax) {
+        console.log(
+          `Structure ${structure.id} (${structure.structureType}) needs repair: ${structure.hits}/${structure.hitsMax}`
+        );
+        return true;
+      }
+      // For roads, only repair when below 30% health
+      if (
+        structure.structureType === STRUCTURE_ROAD &&
+        structure.hits < structure.hitsMax * 0.3
+      ) {
+        console.log(
+          `Road ${structure.id} needs repair: ${structure.hits}/${
+            structure.hitsMax
+          } (${Math.round((structure.hits / structure.hitsMax) * 100)}%)`
+        );
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Find a structure that needs repair (including roads)
+   */
+  static findStructureNeedingRepair(room: any, creep: any): any {
+    const structures = room.find(FIND_STRUCTURES);
+    console.log(
+      `Maintainer ${creep.name} checking ${structures.length} structures for repair`
+    );
+
+    const damagedStructures = structures.filter((structure: any) => {
+      // My structures can be repaired at any damage level
+      if (structure.my && structure.hits < structure.hitsMax) {
+        return true;
+      }
+      // Roads only when below 30% health
+      if (
+        structure.structureType === STRUCTURE_ROAD &&
+        structure.hits < structure.hitsMax * 0.3
+      ) {
+        return true;
+      }
+      return false;
+    });
+
+    console.log(
+      `Found ${damagedStructures.length} damaged repairable structures`
+    );
+
+    if (damagedStructures.length === 0) {
+      return null;
+    }
+
+    // Sort by damage percentage (most damaged first) and distance from creep
+    const sortedStructures = damagedStructures.sort((a: any, b: any) => {
+      const damagePercentA = a.hits / a.hitsMax;
+      const damagePercentB = b.hits / b.hitsMax;
+      const distanceA = creep.pos.getRangeTo(a);
+      const distanceB = creep.pos.getRangeTo(b);
+
+      // Prioritize most damaged structures, then nearest
+      if (Math.abs(damagePercentA - damagePercentB) > 0.1) {
+        return damagePercentA - damagePercentB;
+      }
+      return distanceA - distanceB;
+    });
+
+    const target = sortedStructures[0];
+    console.log(
+      `Maintainer ${creep.name} targeting ${target.structureType} (${target.id}) for repair`
+    );
+    return target;
+  }
+
+  /**
+   * Repair a structure
+   */
+  static repairStructure(creep: any, structure: any): number {
+    const repairResult = creep.repair(structure);
+    console.log(`${creep.name} repair result: ${repairResult}`);
+    return repairResult;
+  }
+
+  /**
+   * Check if there are hostile creeps in a room
+   */
+  static hasHostileCreeps(room: any): boolean {
+    const hostileCreeps = room.find(FIND_HOSTILE_CREEPS);
+    return hostileCreeps.length > 0;
+  }
+
+  /**
+   * Find a hostile creep to attack
+   */
+  static findHostileCreep(room: any, creep: any): any {
+    const hostileCreeps = room.find(FIND_HOSTILE_CREEPS);
+
+    if (hostileCreeps.length === 0) {
+      return null;
+    }
+
+    // Sort by distance from the attacker (nearest first)
+    const sortedCreeps = hostileCreeps.sort((a: any, b: any) => {
+      const distanceA = creep.pos.getRangeTo(a);
+      const distanceB = creep.pos.getRangeTo(b);
+      return distanceA - distanceB;
+    });
+
+    return sortedCreeps[0];
+  }
+
+  /**
+   * Attack a target
+   */
+  static attackTarget(creep: any, target: any): number {
+    const attackResult = creep.attack(target);
+    console.log(`${creep.name} attack result: ${attackResult}`);
+
+    // Add debugging for structure attacks
+    if (target.structureType) {
+      // Calculate expected damage based on creep's attack parts
+      const attackParts = creep.body.filter(
+        (part: any) => part.type === "attack"
+      ).length;
+      const expectedDamage = attackParts * 30; // Each ATTACK part does 30 damage
+
+      console.log(
+        `${creep.name} attacking ${target.structureType} (${target.id})`
+      );
+      console.log(`Target hits: ${target.hits}/${target.hitsMax}`);
+      console.log(
+        `Expected damage this tick: ${expectedDamage} (${attackParts} ATTACK parts)`
+      );
+      console.log(
+        `Damage percentage: ${((expectedDamage / target.hitsMax) * 100).toFixed(
+          4
+        )}%`
+      );
+
+      // Calculate how many ticks to destroy
+      if (expectedDamage > 0) {
+        const ticksToDestroy = Math.ceil(target.hits / expectedDamage);
+        const secondsToDestroy = ticksToDestroy / 20; // 20 ticks per second
+        const minutesToDestroy = secondsToDestroy / 60;
+        const hoursToDestroy = minutesToDestroy / 60;
+
+        let timeString = "";
+        if (hoursToDestroy >= 1) {
+          timeString = `${hoursToDestroy.toFixed(1)} hours`;
+        } else if (minutesToDestroy >= 1) {
+          timeString = `${minutesToDestroy.toFixed(1)} minutes`;
+        } else {
+          timeString = `${secondsToDestroy.toFixed(1)} seconds`;
+        }
+
+        console.log(`Ticks to destroy: ${ticksToDestroy} (${timeString})`);
+      }
+    }
+
+    return attackResult;
   }
 }
